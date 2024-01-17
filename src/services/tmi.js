@@ -8,7 +8,7 @@ const HOME_ASSISTANT_DEVICE_LIST = JSON.parse(process.env.HOME_ASSISTANT_DEVICE_
 
 const client = new tmi.Client({
     options: {
-        debug: true,
+        debug: false,
     },
     identity: {
         username: USERNAME,
