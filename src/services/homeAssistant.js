@@ -17,7 +17,7 @@ export async function controlEntity(entityID, hexColor) {
 
  
         if (stateResponse.data.state === 'off') {
-            throw new Error('vai dormir');
+            throw new Error('esse dispositivo está desligado');
         }
 
         const rgbColor = hexToRgb(hexColor);

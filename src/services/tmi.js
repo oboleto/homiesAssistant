@@ -19,31 +19,64 @@ const client = new tmi.Client({
 
 client.connect();
 
-client.on("message", async (channel, tags, message, self) => {
-    if (self) return;
+const PREFIX = "!";
 
-    if (message.toLowerCase().startsWith("!controlar")) {
-        const args = message.split(" ");
-        try {
-            await controlDevice(args[1], args[2]);
-            client.say(channel, `@${tags.username}, mudando cor de ${args[1]} para ${args[2]}`);
-        } catch (error) {
-            client.say(channel, `@${tags.username}, peeposad ${error.message}`);
-            console.error(error);
+const COMMAND_TIMEOUTS = {
+    "controlar": 30,
+    "dispositivos": 60,
+    "comandos": 10
+};
+
+let lastCommandTimes = {};
+
+const commands = {
+    "controlar": async (channel, tags, args) => {
+        if (args.length < 2) {
+            client.say(channel, `@${tags.username}, uso correto: !controlar <nome do dispositivo> <ação>`);
+            return;
         }
-    }
 
-    if (message.toLowerCase() === "!dispositivos") {
-        const deviceNicknames = Object.keys(HOME_ASSISTANT_DEVICE_LIST);
+        const deviceName = args[0];
+        const action = args[1];
+
+        try {
+            await controlDevice(deviceName, action); 
+            client.say(channel, `@${tags.username}, cor de ${deviceName} alterada para ${action}.`);
+        } catch (error) {
+            client.say(channel, `@${tags.username}, erro ao controlar dispositivo: ${error.message}`);
+        }
+    },
+    "dispositivos": (channel, tags) => {
+        const deviceNicknames = Object.keys(HOME_ASSISTANT_DEVICE_LIST); 
         const response = deviceNicknames.length > 0 
-            ? `peepohappy Dispositivos disponíveis: ${deviceNicknames.join(', ')}`
-            : "peeposad Não há dispositivos disponíveis.";
+            ? `Dispositivos disponíveis: ${deviceNicknames.join(', ')}`
+            : "Não há dispositivos disponíveis.";
 
         client.say(channel, `@${tags.username}, ${response}`);
+    },
+    "comandos": (channel, tags) => {
+        client.say(channel, `@${tags.username}, Comandos disponíveis: !controlar <nome do dispositivo> <ação>, !dispositivos`);
     }
-    if (message.toLowerCase() === "!comandos") {
-        client.say(channel, `@${tags.username}, !controlar <nome do dispositivo> <hex da cor>, !dispositivos`);
+};
+
+client.on("message", async (channel, tags, message, self) => {
+    if (self || !message.toLowerCase().startsWith(PREFIX)) return;
+
+    const args = message.slice(PREFIX.length).trim().split(" ");
+    const commandName = args.shift().toLowerCase();
+    const currentTime = new Date().getTime();
+
+    if (lastCommandTimes[commandName] && (currentTime - lastCommandTimes[commandName]) / 1000 < COMMAND_TIMEOUTS[commandName]) {
+        client.say(channel, `@${tags.username}, por favor aguarde antes de usar o comando novamente.`);
+        return;
+    }
+
+    lastCommandTimes[commandName] = currentTime;
+
+    if (commands[commandName]) {
+        commands[commandName](channel, tags, args);
     }
 });
+
 
 export default client;
